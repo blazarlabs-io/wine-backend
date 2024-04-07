@@ -2,7 +2,7 @@ import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { error, log } from 'firebase-functions/logger';
 import type { AdminUser, DeleteUser, NewUser } from '../models/auth.models';
-import { auth, db } from '../lib/firebase/admin';
+import { auth, db, storage } from '../lib/firebase/admin';
 
 export const createNewUser = functions.https.onCall(
     async (data: NewUser, context) => {
@@ -26,6 +26,8 @@ export const createNewUser = functions.https.onCall(
                 tier: data.data.tier,
                 level: data.data.level,
                 generalInfo: {},
+                euLabels: [],
+                wines: [],
             });
 
             log('User created successfully');
@@ -75,6 +77,12 @@ export const deleteUser = functions.https.onCall(
 export const deleteFirestoreForUser = functions.auth
     .user()
     .onDelete(async (user) => {
+        const bucket = storage.bucket();
+
+        await bucket.deleteFiles({
+            prefix: `images/${user.uid}`,
+        });
+
         return db.collection('wineries').doc(user.uid).delete();
     });
 
