@@ -1,13 +1,15 @@
 import * as dotenv from 'dotenv';
 import * as sgMail from '@sendgrid/mail';
 import * as functions from 'firebase-functions';
-import { SendPasswordEmail } from '../models/email.models';
-
+import { SendEmail } from '../models/email.models';
+import { log } from 'firebase-functions/logger';
 dotenv.config();
 
 export const sendEmail = functions.https.onCall(
-    async (data: SendPasswordEmail, context) => {
+    async (data: SendEmail, context) => {
         sgMail.setApiKey(process.env.SENDGRID_API_KEY as string);
+
+        log('Sending email', data.data);
 
         try {
             if (!context.auth) {

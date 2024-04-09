@@ -1,4 +1,4 @@
-export interface SendPasswordEmail {
+export interface SendEmail {
     data: {
         from: string;
         to: string;
