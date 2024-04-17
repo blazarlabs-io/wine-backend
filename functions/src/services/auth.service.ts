@@ -1,7 +1,13 @@
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import { error, log } from 'firebase-functions/logger';
-import type { AdminUser, DeleteUser, NewUser } from '../models/auth.models';
+import type {
+    AdminUser,
+    DeleteUser,
+    NewUser,
+    GetUserTierAndLevel,
+    UpdateUserTierAndLevel,
+} from '../models/auth.models';
 import { auth, db, storage } from '../lib/firebase/admin';
 
 export const createNewUser = functions.https.onCall(
@@ -124,6 +130,55 @@ export const isUserAdmin = functions.https.onCall(
             log('Is user an admin?', isUserAdmin);
 
             return isUserAdmin;
+        } catch (err) {
+            error('An error occurred', err);
+            throw new functions.https.HttpsError(
+                'internal',
+                'An error occurred.'
+            );
+        }
+    }
+);
+
+export const getUserTierAndLevel = functions.https.onCall(
+    async (data: GetUserTierAndLevel, context) => {
+        log('Getting user tier and level', data.data.uid);
+
+        try {
+            const resData = await db
+                .collection('wineries')
+                .doc(data.data.uid)
+                .get();
+
+            log('User tier and level', resData.data());
+
+            const tier = resData.data()?.tier;
+            const level = resData.data()?.level;
+
+            return { tier, level };
+        } catch (err) {
+            error('An error occurred', err);
+            throw new functions.https.HttpsError(
+                'internal',
+                'An error occurred.'
+            );
+        }
+    }
+);
+
+export const updateUserTierAndLevel = functions.https.onCall(
+    async (data: UpdateUserTierAndLevel, context) => {
+        log('Updating user tier and level', data.data.uid);
+
+        try {
+            await db.collection('wineries').doc(data.data.uid).update({
+                tier: data.data.tier,
+                level: data.data.level,
+            });
+
+            return {
+                message: 'User tier and level updated successfully',
+            };
         } catch (err) {
             error('An error occurred', err);
             throw new functions.https.HttpsError(

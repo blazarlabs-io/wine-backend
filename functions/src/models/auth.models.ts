@@ -18,3 +18,17 @@ export interface AdminUser {
         email: string;
     };
 }
+
+export interface GetUserTierAndLevel {
+    data: {
+        uid: string;
+    };
+}
+
+export interface UpdateUserTierAndLevel {
+    data: {
+        uid: string;
+        tier: string;
+        level: number;
+    };
+}
