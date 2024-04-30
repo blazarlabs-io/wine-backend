@@ -7,6 +7,7 @@ import {
     getUserTierAndLevel,
     updateUserTierAndLevel,
     getWineryName,
+    createFirestoreForUser,
 } from './services/auth.service';
 import { sendEmail } from './services/email.service';
 import { deleteNotification, createNotification } from './services/db.service';
@@ -20,6 +21,7 @@ exports.isUserAdmin = isUserAdmin;
 exports.getUserTierAndLevel = getUserTierAndLevel;
 exports.updateUserTierAndLevel = updateUserTierAndLevel;
 exports.getWineryName = getWineryName;
+exports.createFirestoreForUser = createFirestoreForUser;
 
 // Email
 exports.sendEmail = sendEmail;

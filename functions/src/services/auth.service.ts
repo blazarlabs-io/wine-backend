@@ -81,6 +81,31 @@ export const deleteUser = functions.https.onCall(
     }
 );
 
+export const createFirestoreForUser = functions.auth
+    .user()
+    .onCreate(async (user) => {
+        const sysVarsRef = await db
+            .collection('utils')
+            .doc('systemVariables')
+            .get();
+
+        const sysVars = sysVarsRef.data();
+
+        if (sysVars) {
+            await db.collection('wineries').doc(user.uid).set({
+                tier: sysVars.default.tier,
+                level: sysVars.default.level,
+                generalInfo: {},
+                euLabels: [],
+                wines: [],
+            });
+        }
+
+        return {
+            message: 'Firestore document created successfully',
+        };
+    });
+
 export const deleteFirestoreForUser = functions.auth
     .user()
     .onDelete(async (user) => {
