@@ -13,6 +13,12 @@ export interface DeleteUser {
     };
 }
 
+export interface AuthUser {
+    data: {
+        uid: string;
+    };
+}
+
 export interface AdminUser {
     data: {
         email: string;

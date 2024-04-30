@@ -7,6 +7,7 @@ import type {
     NewUser,
     GetUserTierAndLevel,
     UpdateUserTierAndLevel,
+    AuthUser,
 } from '../models/auth.models';
 import { auth, db, storage } from '../lib/firebase/admin';
 
@@ -179,6 +180,31 @@ export const updateUserTierAndLevel = functions.https.onCall(
             return {
                 message: 'User tier and level updated successfully',
             };
+        } catch (err) {
+            error('An error occurred', err);
+            throw new functions.https.HttpsError(
+                'internal',
+                'An error occurred.'
+            );
+        }
+    }
+);
+
+export const getWineryName = functions.https.onCall(
+    async (data: AuthUser, context) => {
+        log('Getting winery name', data.data.uid);
+
+        try {
+            const resData = await db
+                .collection('wineries')
+                .doc(data.data.uid)
+                .get();
+
+            log('Winery name', resData.data());
+
+            const generalInfo = resData.data()?.generalInfo;
+
+            return generalInfo?.name;
         } catch (err) {
             error('An error occurred', err);
             throw new functions.https.HttpsError(
