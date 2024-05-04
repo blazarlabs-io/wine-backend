@@ -9,3 +9,9 @@ export interface CreateAdminNotification {
         wineryRepresentative: string;
     };
 }
+
+export interface CreateWineType {
+    data: {
+        wineTypes: string[];
+    };
+}

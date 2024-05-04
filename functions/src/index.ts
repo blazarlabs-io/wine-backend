@@ -10,7 +10,11 @@ import {
     createFirestoreForUser,
 } from './services/auth.service';
 import { sendEmail } from './services/email.service';
-import { deleteNotification, createNotification } from './services/db.service';
+import {
+    deleteNotification,
+    createNotification,
+    updateWineTypes,
+} from './services/db.service';
 
 // Auth
 exports.createNewUser = createNewUser;
@@ -29,3 +33,4 @@ exports.sendEmail = sendEmail;
 // DB
 exports.deleteNotification = deleteNotification;
 exports.createNotification = createNotification;
+exports.updateWineTypes = updateWineTypes;
