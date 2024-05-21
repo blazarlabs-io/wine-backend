@@ -8,8 +8,11 @@ import type {
     GetUserTierAndLevel,
     UpdateUserTierAndLevel,
     AuthUser,
+    UpdatePassword,
 } from '../models/auth.models';
 import { auth, db, storage } from '../lib/firebase/admin';
+import { TRASH, UTILS, WINERIES } from '../constants/collections';
+import { SYSTEM_VARIABLES, USERS } from '../constants/documents';
 
 export const createNewUser = functions.https.onCall(
     async (data: NewUser, context) => {
@@ -29,12 +32,13 @@ export const createNewUser = functions.https.onCall(
                 password: data.data.password,
             });
 
-            await db.collection('wineries').doc(userRecord.uid).set({
+            await db.collection(WINERIES).doc(userRecord.uid).set({
                 tier: data.data.tier,
                 level: data.data.level,
                 generalInfo: {},
                 euLabels: [],
                 wines: [],
+                disabled: false,
             });
 
             log('User created successfully');
@@ -57,6 +61,36 @@ export const createNewUser = functions.https.onCall(
     }
 );
 
+export const disableUser = functions.https.onCall(
+    async (data: DeleteUser, context) => {
+        try {
+            if (!context.auth) {
+                throw new functions.https.HttpsError(
+                    'unauthenticated',
+                    'You must be authenticated to disable a user.'
+                );
+            }
+
+            await auth.updateUser(data.data.uid, {
+                disabled: true,
+            });
+
+            await db.collection(WINERIES).doc(data.data.uid).update({
+                disabled: true,
+            });
+
+            return {
+                message: 'User disabled successfully',
+            };
+        } catch (error) {
+            throw new functions.https.HttpsError(
+                'internal',
+                'An error occurred.'
+            );
+        }
+    }
+);
+
 export const deleteUser = functions.https.onCall(
     async (data: DeleteUser, context) => {
         try {
@@ -66,6 +100,14 @@ export const deleteUser = functions.https.onCall(
                     'You must be authenticated to delete a user.'
                 );
             }
+
+            const docRef = await db
+                .collection(WINERIES)
+                .doc(data.data.uid)
+                .get();
+
+            const backup = docRef.data();
+            await db.collection(TRASH).doc(data.data.uid).set({ backup });
 
             await auth.deleteUser(data.data.uid);
 
@@ -81,23 +123,43 @@ export const deleteUser = functions.https.onCall(
     }
 );
 
+export const updateUserPassword = functions.https.onCall(
+    async (data: UpdatePassword) => {
+        try {
+            await auth.updateUser(data.data.uid, {
+                password: data.data.password,
+            });
+
+            return {
+                message: 'User password updated successfully',
+            };
+        } catch (error) {
+            throw new functions.https.HttpsError(
+                'internal',
+                'An error occurred.'
+            );
+        }
+    }
+);
+
 export const createFirestoreForUser = functions.auth
     .user()
     .onCreate(async (user) => {
         const sysVarsRef = await db
-            .collection('utils')
-            .doc('systemVariables')
+            .collection(UTILS)
+            .doc(SYSTEM_VARIABLES)
             .get();
 
         const sysVars = sysVarsRef.data();
 
         if (sysVars) {
-            await db.collection('wineries').doc(user.uid).set({
+            await db.collection(WINERIES).doc(user.uid).set({
                 tier: sysVars.default.tier,
                 level: sysVars.default.level,
                 generalInfo: {},
                 euLabels: [],
                 wines: [],
+                disabled: false,
             });
         }
 
@@ -115,7 +177,7 @@ export const deleteFirestoreForUser = functions.auth
             prefix: `images/${user.uid}`,
         });
 
-        return db.collection('wineries').doc(user.uid).delete();
+        return db.collection(WINERIES).doc(user.uid).delete();
     });
 
 export const listAllUsers = functions.https.onCall(
@@ -140,39 +202,34 @@ export const listAllUsers = functions.https.onCall(
     }
 );
 
-export const isUserAdmin = functions.https.onCall(
-    async (data: AdminUser, context) => {
-        log('Checking if user is an admin', data.data.email);
+export const isUserAdmin = functions.https.onCall(async (data: AdminUser) => {
+    log('Checking if user is an admin', data.data.email);
 
-        try {
-            const resData = await db.collection('utils').doc('users').get();
+    try {
+        const resData = await db.collection(UTILS).doc(USERS).get();
 
-            log('User is an admin', resData.data());
+        log('User is an admin', resData.data());
 
-            const adminObj = resData.data()?.admin;
+        const adminObj = resData.data()?.admin;
 
-            const isUserAdmin = adminObj.includes(data.data.email);
+        const isUserAdmin = adminObj.includes(data.data.email);
 
-            log('Is user an admin?', isUserAdmin);
+        log('Is user an admin?', isUserAdmin);
 
-            return isUserAdmin;
-        } catch (err) {
-            error('An error occurred', err);
-            throw new functions.https.HttpsError(
-                'internal',
-                'An error occurred.'
-            );
-        }
+        return isUserAdmin;
+    } catch (err) {
+        error('An error occurred', err);
+        throw new functions.https.HttpsError('internal', 'An error occurred.');
     }
-);
+});
 
 export const getUserTierAndLevel = functions.https.onCall(
-    async (data: GetUserTierAndLevel, context) => {
+    async (data: GetUserTierAndLevel) => {
         log('Getting user tier and level', data.data.uid);
 
         try {
             const resData = await db
-                .collection('wineries')
+                .collection(WINERIES)
                 .doc(data.data.uid)
                 .get();
 
@@ -193,11 +250,11 @@ export const getUserTierAndLevel = functions.https.onCall(
 );
 
 export const updateUserTierAndLevel = functions.https.onCall(
-    async (data: UpdateUserTierAndLevel, context) => {
+    async (data: UpdateUserTierAndLevel) => {
         log('Updating user tier and level', data.data.uid);
 
         try {
-            await db.collection('wineries').doc(data.data.uid).update({
+            await db.collection(WINERIES).doc(data.data.uid).update({
                 tier: data.data.tier,
                 level: data.data.level,
             });
@@ -215,27 +272,19 @@ export const updateUserTierAndLevel = functions.https.onCall(
     }
 );
 
-export const getWineryName = functions.https.onCall(
-    async (data: AuthUser, context) => {
-        log('Getting winery name', data.data.uid);
+export const getWineryName = functions.https.onCall(async (data: AuthUser) => {
+    log('Getting winery name', data.data.uid);
 
-        try {
-            const resData = await db
-                .collection('wineries')
-                .doc(data.data.uid)
-                .get();
+    try {
+        const resData = await db.collection(WINERIES).doc(data.data.uid).get();
 
-            log('Winery name', resData.data());
+        log('Winery name', resData.data());
 
-            const generalInfo = resData.data()?.generalInfo;
+        const generalInfo = resData.data()?.generalInfo;
 
-            return generalInfo?.name;
-        } catch (err) {
-            error('An error occurred', err);
-            throw new functions.https.HttpsError(
-                'internal',
-                'An error occurred.'
-            );
-        }
+        return generalInfo?.name;
+    } catch (err) {
+        error('An error occurred', err);
+        throw new functions.https.HttpsError('internal', 'An error occurred.');
     }
-);
+});

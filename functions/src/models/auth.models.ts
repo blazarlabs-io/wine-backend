@@ -19,6 +19,13 @@ export interface AuthUser {
     };
 }
 
+export interface UpdatePassword {
+    data: {
+        uid: string;
+        password: string;
+    };
+}
+
 export interface AdminUser {
     data: {
         email: string;
